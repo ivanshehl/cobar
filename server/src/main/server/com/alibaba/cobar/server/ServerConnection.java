@@ -18,6 +18,8 @@ package com.alibaba.cobar.server;
 import java.io.EOFException;
 import java.nio.channels.SocketChannel;
 import java.sql.SQLNonTransientException;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.log4j.Logger;
 
@@ -27,11 +29,13 @@ import com.alibaba.cobar.config.model.SchemaConfig;
 import com.alibaba.cobar.net.FrontendConnection;
 import com.alibaba.cobar.route.RouteResultset;
 import com.alibaba.cobar.route.ServerRouter;
+import com.alibaba.cobar.server.parser.ServerParse;
 import com.alibaba.cobar.server.response.Heartbeat;
 import com.alibaba.cobar.server.response.Ping;
 import com.alibaba.cobar.server.session.BlockingSession;
 import com.alibaba.cobar.server.session.NonBlockingSession;
 import com.alibaba.cobar.util.TimeUtil;
+import com.alibaba.fastjson.JSON;
 
 /**
  * @author xianmao.hexm 2011-4-21 上午11:22:57
@@ -46,6 +50,8 @@ public class ServerConnection extends FrontendConnection {
     private long lastInsertId;
     private BlockingSession session;
     private NonBlockingSession session2;
+    
+    private static final Logger DBALOG = Logger.getLogger("dba_log");
 
     public ServerConnection(SocketChannel channel) {
         super(channel);
@@ -139,7 +145,13 @@ public class ServerConnection extends FrontendConnection {
             writeErrMessage(ErrorCode.ER_BAD_DB_ERROR, "Unknown database '" + db + "'");
             return;
         }
-
+        try{
+        	if(type == ServerParse.SELECT){
+        		showLog(this.user, db, sql);
+        	}
+        }catch(Exception e){
+        	
+        }
         // 路由计算
         RouteResultset rrs = null;
         try {
@@ -235,4 +247,11 @@ public class ServerConnection extends FrontendConnection {
         }
     }
 
+    private void showLog(String user,String db,String sql){
+    	Map<String,String> logMap = new HashMap<String,String>();
+    	logMap.put("user", user);
+    	logMap.put("db", db);
+    	logMap.put("sql", sql);
+    	DBALOG.info(JSON.toJSON(logMap));
+    }
 }
